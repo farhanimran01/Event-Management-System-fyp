@@ -1,80 +1,88 @@
-const fetch = require('node-fetch'); // You might need to install node-fetch if on older node, or use native fetch in Node 18+
+const fetch = require('node-fetch');
 
 const API_URL = 'http://localhost:5000/api/events';
 
-const testEvent = {
-    title: 'Test Event with Agenda',
-    description: 'Testing the new agenda feature',
-    date: '2025-01-01',
-    time: '10:00 AM',
-    location: 'Virtual',
-    organizer: 'Test Runner',
-    capacity: 100,
-    agenda: [
-        {
-            title: 'Opening keynotes',
-            startTime: '2025-01-01T10:00:00',
-            endTime: '2025-01-01T11:00:00',
-            description: 'Welcome speech',
-            speaker: 'Jane Doe'
-        }
-    ],
-    backupPlans: 'Switch to Zoom if platform fails'
+const mainEvent = {
+    title: 'Main Event Strategy',
+    description: 'Primary event plan',
+    date: '2025-06-01',
+    time: '09:00 AM',
+    location: 'Conference Hall A',
+    organizer: 'HQ',
+    capacity: 500,
+    isTemplate: true // Create as a template first
 };
 
 async function runTests() {
-    console.log('--- Starting Verification ---');
+    console.log('--- Starting Enhanced Verification ---');
 
-    // 1. Create Event
-    console.log('\n1. Creating Event...');
+    // 1. Create Template Event
+    console.log('\n1. Creating Template Event...');
     const createRes = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testEvent)
+        body: JSON.stringify(mainEvent)
     });
     const createData = await createRes.json();
-    console.log('Create Status:', createRes.status);
-    console.log('Created ID:', createData.data?._id);
 
-    if (!createData.success || !createData.data._id) {
-        console.error('Failed to create event', createData);
+    if (!createData.success) {
+        console.error('Failed to create template', createData);
         return;
     }
-    const eventId = createData.data._id;
+    const templateId = createData.data._id;
+    console.log('Template Created ID:', templateId);
+    console.log('Is Template:', createData.data.isTemplate);
 
-    // 2. Get All Events
-    console.log('\n2. Fetching All Events...');
-    const getAllRes = await fetch(API_URL);
-    const getAllData = await getAllRes.json();
-    console.log('Get All Success:', getAllData.success);
-    console.log('Total Events:', getAllData.count);
+    // 2. Create Branch Event from Template
+    console.log('\n2. Creating Branch Event from Template...');
+    const branchEvent = {
+        title: 'Alternative Outdoor Plan',
+        location: 'City Park', // Override location
+        templateId: templateId,
+        parentEvent: templateId // Link to parent
+    };
 
-    // 3. Get Single Event
-    console.log('\n3. Fetching Created Event...');
-    const getOneRes = await fetch(`${API_URL}/${eventId}`);
-    const getOneData = await getOneRes.json();
-    console.log('Agenda Title matched:', getOneData.data.agenda[0].title === testEvent.agenda[0].title);
-    console.log('Backup Plan matched:', getOneData.data.backupPlans === testEvent.backupPlans);
+    const branchRes = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(branchEvent)
+    });
+    const branchData = await branchRes.json();
 
-    // 4. Update Event
-    console.log('\n4. Updating Event...');
-    const updateRes = await fetch(`${API_URL}/${eventId}`, {
+    if (!branchData.success) {
+        console.error('Failed to create branch', branchData);
+        return;
+    }
+    const branchId = branchData.data._id;
+    console.log('Branch Created ID:', branchId);
+    console.log('Inherited Date:', branchData.data.date === mainEvent.date);
+    console.log('Overridden Location:', branchData.data.location === 'City Park');
+    console.log('Is Template (should be false):', branchData.data.isTemplate);
+
+    // 3. Update Branch Event to trigger Lineage
+    console.log('\n3. Updating Branch Event (Lineage Check)...');
+    const updateRes = await fetch(`${API_URL}/${branchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Updated Title' })
+        body: JSON.stringify({ capacity: 600, description: 'Increased capacity for outdoor' })
     });
     const updateData = await updateRes.json();
-    console.log('Update Status:', updateRes.status);
-    console.log('New Title:', updateData.data.title);
 
-    // 5. Delete Event
-    console.log('\n5. Deleting Event...');
-    const deleteRes = await fetch(`${API_URL}/${eventId}`, {
-        method: 'DELETE'
-    });
-    const deleteData = await deleteRes.json();
-    console.log('Delete Status:', deleteRes.status);
-    console.log('Delete Success:', deleteData.success);
+    if (!updateData.success) {
+        console.error('Failed to update branch', updateData);
+        return;
+    }
+    console.log('Update Success:', updateData.success);
+    console.log('Lineage Length:', updateData.data.lineage?.length);
+    if (updateData.data.lineage?.length > 0) {
+        console.log('Latest Change:', updateData.data.lineage[0].changes);
+    }
+
+    // 4. Cleanup
+    console.log('\n4. Cleaning Up...');
+    await fetch(`${API_URL}/${templateId}`, { method: 'DELETE' });
+    await fetch(`${API_URL}/${branchId}`, { method: 'DELETE' });
+    console.log('Cleanup Complete');
 
     console.log('\n--- Verification Complete ---');
 }

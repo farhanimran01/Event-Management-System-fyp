@@ -69,6 +69,25 @@ const eventSchema = new mongoose.Schema(
             type: String,
             default: '',
         },
+        isTemplate: {
+            type: Boolean,
+            default: false,
+        },
+        parentEvent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Event',
+            default: null,
+        },
+        lineage: [
+            {
+                timestamp: {
+                    type: Date,
+                    default: Date.now,
+                },
+                modifiedBy: String,
+                changes: mongoose.Schema.Types.Mixed,
+            }
+        ],
     },
     {
         timestamps: true,
