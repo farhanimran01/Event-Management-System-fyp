@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Shield, Users, DollarSign, Database } from "lucide-react";
+import DashboardHeader from "@/app/components/DashboardHeader";
 
 export default function AdminDashboard() {
     const { user } = useAuth();
@@ -28,10 +29,11 @@ export default function AdminDashboard() {
     return (
         <div className="min-h-screen bg-slate-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="flex items-center gap-3 mb-8">
-                    <Shield className="w-8 h-8 text-indigo-400" />
-                    <h1 className="text-3xl font-bold">Admin Console</h1>
-                </div>
+                <DashboardHeader
+                    title="Admin Console"
+                    subtitle="System-wide management and analytics"
+                    isDark={true}
+                />
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">

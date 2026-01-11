@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Calendar, DollarSign, Users, TrendingUp, Plus } from "lucide-react";
+import DashboardHeader from "@/app/components/DashboardHeader";
 
 export default function OrganizerDashboard() {
     const { user } = useAuth();
@@ -29,12 +30,13 @@ export default function OrganizerDashboard() {
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Organizer Dashboard</h1>
-                        <p className="text-gray-600">Welcome back, {user?.name}</p>
-                    </div>
-                    <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <DashboardHeader
+                    title="Organizer Dashboard"
+                    subtitle={`Welcome back, ${user?.name}`}
+                />
+
+                <div className="flex justify-end mb-8">
+                    <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-purple-100">
                         <Plus className="w-5 h-5" />
                         Create Event
                     </button>
