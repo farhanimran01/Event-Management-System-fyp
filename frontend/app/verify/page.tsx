@@ -2,7 +2,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { Check, AlertCircle, Copy } from "lucide-react";
-import { useAuth } from "@/app/AuthContext";
+import { useAuth } from '@/context/AuthContext';
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();

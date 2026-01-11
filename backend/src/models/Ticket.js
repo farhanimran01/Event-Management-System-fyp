@@ -2,43 +2,47 @@ const mongoose = require('mongoose');
 
 const ticketSchema = new mongoose.Schema(
     {
-        eventId: {
-            type: String,
-            required: true,
+        event: {
+            type: mongoose.Schema.Types.ObjectId,
             ref: 'Event',
-        },
-        userId: {
-            type: String,
             required: true,
-            ref: 'User',
         },
-        ticketNumber: {
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
+        },
+        ticketType: {
+            name: { type: String, required: true },
+            price: { type: Number, required: true },
+        },
+        paymentStatus: {
             type: String,
+            enum: ['pending', 'paid', 'failed', 'refunded'],
+            default: 'pending',
+        },
+        paymentId: {
+            type: String,
+        },
+        qrCode: {
+            type: String, // Store the QR code string or URL
             required: true,
             unique: true,
         },
-        ticketType: {
-            type: String,
-            required: true,
+        checkedIn: {
+            type: Boolean,
+            default: false,
         },
-        price: {
-            type: Number,
-            required: true,
-        },
-        status: {
-            type: String,
-            enum: ['valid', 'used', 'cancelled'],
-            default: 'valid',
-        },
-        qrCode: String,
-        purchaseDate: {
+        checkInTime: {
             type: Date,
-            default: Date.now,
-        },
+        }
     },
     {
         timestamps: true,
     }
 );
+
+// Prevent duplicate booking for same event/user? 
+// Maybe allow multiple tickets but unique QR codes.
 
 module.exports = mongoose.models.Ticket || mongoose.model('Ticket', ticketSchema);
