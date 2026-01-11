@@ -40,6 +40,31 @@ export default function AttendeeDashboard() {
     const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'notifications'>('upcoming');
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [selectedEventId, setSelectedEventId] = useState("");
+    const [feedbackRating, setFeedbackRating] = useState(5);
+    const [feedbackComment, setFeedbackComment] = useState("");
+    const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+    const submitFeedback = async () => {
+        if (!feedbackComment) return alert("Please share a brief comment about your experience.");
+        setSubmittingFeedback(true);
+        try {
+            await api.post("/feedback", {
+                eventId: selectedEventId,
+                rating: feedbackRating,
+                comment: feedbackComment
+            });
+            alert("Digital debriefing successful. Your feedback has been logged.");
+            setShowFeedbackModal(false);
+            setFeedbackComment("");
+            setFeedbackRating(5);
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Feedback transmission failed.");
+        } finally {
+            setSubmittingFeedback(false);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -183,9 +208,22 @@ export default function AttendeeDashboard() {
                                         </div>
 
                                         <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                                            <Link href={`/events/${ticket.event._id}`} className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
-                                                Event Intel <ExternalLink size={14} />
-                                            </Link>
+                                            <div className="flex gap-4">
+                                                <Link href={`/dashboard/events/${ticket.event._id}`} className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                                                    Event Intel <ExternalLink size={14} />
+                                                </Link>
+                                                {activeTab === 'past' && ticket.checkedIn && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedEventId(ticket.event._id);
+                                                            setShowFeedbackModal(true);
+                                                        }}
+                                                        className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all"
+                                                    >
+                                                        Share Experience <MessageSquare size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                             <div className="text-right">
                                                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">ID</p>
                                                 <p className="text-xs font-mono font-bold text-slate-500">#{ticket._id.slice(-8)}</p>
@@ -195,16 +233,25 @@ export default function AttendeeDashboard() {
 
                                     {activeTab === 'upcoming' && (
                                         <div className="bg-slate-900 p-10 flex flex-col items-center justify-center sm:w-64 text-white relative">
-                                            <div className="bg-white p-4 rounded-3xl mb-4 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                                            <div className="bg-white p-4 rounded-3xl mb-4 shadow-2xl group-hover:scale-110 transition-transform duration-500 relative">
                                                 {ticket.qrCode ? (
-                                                    <img src={ticket.qrCode} alt="QR" className="w-32 h-32" />
+                                                    <>
+                                                        <img src={ticket.qrCode} alt="QR" className={`w-32 h-32 transition-all ${ticket.checkedIn ? 'opacity-20 grayscale scale-95' : ''}`} />
+                                                        {ticket.checkedIn && (
+                                                            <div className="absolute inset-0 flex items-center justify-center animate-in zoom-in duration-300">
+                                                                <CheckCircle className="text-emerald-500 w-16 h-16 drop-shadow-lg" strokeWidth={3} />
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 ) : (
                                                     <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-200">
                                                         <Ticket size={40} />
                                                     </div>
                                                 )}
                                             </div>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Scan to Enter</p>
+                                            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${ticket.checkedIn ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                {ticket.checkedIn ? 'Entry Verified' : 'Scan to Enter'}
+                                            </p>
                                         </div>
                                     )}
                                 </div>
@@ -248,6 +295,58 @@ export default function AttendeeDashboard() {
                     )}
                 </div>
             </div>
+
+            {/* Feedback Modal */}
+            {showFeedbackModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-0">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowFeedbackModal(false)} />
+                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative animate-in fade-in zoom-in duration-300 border border-slate-100">
+                        <div className="absolute top-8 right-8 cursor-pointer text-slate-400 hover:text-slate-600" onClick={() => setShowFeedbackModal(false)}>
+                            <Bell size={24} className="rotate-45" />
+                        </div>
+
+                        <div className="mb-8">
+                            <h3 className="text-3xl font-black text-slate-900 mb-2 mt-2">Share Experience</h3>
+                            <p className="text-slate-500 font-medium">Your tactical feedback helps us optimize future operations.</p>
+                        </div>
+
+                        <div className="space-y-8">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Mission Rating</label>
+                                <div className="flex gap-3">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            onClick={() => setFeedbackRating(star)}
+                                            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${feedbackRating >= star ? 'bg-amber-100 text-amber-500 shadow-lg shadow-amber-50' : 'bg-slate-50 text-slate-300'}`}
+                                        >
+                                            <Star size={24} fill={feedbackRating >= star ? "currentColor" : "none"} />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Post-Mission Debrief</label>
+                                <textarea
+                                    className="w-full p-6 bg-slate-50 border-2 border-slate-50 rounded-3xl outline-none focus:bg-white focus:border-blue-500 transition-all font-bold text-slate-700 placeholder:text-slate-300 min-h-[150px]"
+                                    placeholder="What went well? What could be optimized..."
+                                    value={feedbackComment}
+                                    onChange={(e) => setFeedbackComment(e.target.value)}
+                                />
+                            </div>
+
+                            <button
+                                onClick={submitFeedback}
+                                disabled={submittingFeedback}
+                                className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest shadow-xl shadow-blue-100 flex items-center justify-center gap-3 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {submittingFeedback ? <Loader2 className="animate-spin" /> : <>Log Debrief <CheckCircle size={20} /></>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
