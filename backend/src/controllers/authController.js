@@ -35,35 +35,17 @@ exports.register = async (req, res, next) => {
 
         console.log("✅ User Created Successfully:", user._id);
 
-        // 4. Generate Verification Token
-        const verificationToken = user.getVerificationToken();
-        await user.save({ validateBeforeSave: false });
-
-        // 5. Create Verification URL
-        const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
-
-        const message = `You are receiving this email because you (or someone else) has registered an account with this email address. Please click the link below to verify your email:\n\n ${verifyUrl}`;
-
-        try {
-            await sendEmail({
+        // 4. Return success (Skip email verification for now)
+        return res.status(201).json({
+            success: true,
+            message: 'Registration successful. You can now log in.',
+            user: {
+                id: user._id,
+                name: user.name,
                 email: user.email,
-                subject: 'Email Verification',
-                message,
-                html: `<h1>Email Verification</h1><p>Please click the link below to verify your email address:</p><a href="${verifyUrl}">Verify Email</a>`
-            });
-
-            return res.status(201).json({
-                success: true,
-                message: 'Registration successful. Please check your email to verify your account.'
-            });
-        } catch (err) {
-            console.error("❌ EMAIL SEND ERROR:", err);
-            user.verificationToken = undefined;
-            user.verificationTokenExpire = undefined;
-            await user.save({ validateBeforeSave: false });
-
-            return res.status(500).json({ success: false, error: 'Email could not be sent. Please contact support.' });
-        }
+                role: user.role
+            }
+        });
 
     } catch (err) {
         console.error("❌ REGISTER CONTROLLER ERROR:", err);
@@ -102,10 +84,10 @@ exports.login = async (req, res, next) => {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Check if verified
-        if (!user.verified) {
-            return res.status(401).json({ success: false, error: 'Please verify your email address to log in' });
-        }
+        // Check if verified (Bypassed)
+        // if (!user.verified) {
+        //     return res.status(401).json({ success: false, error: 'Please verify your email address to log in' });
+        // }
 
         sendTokenResponse(user, 200, res);
     } catch (err) {
