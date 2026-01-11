@@ -1,5 +1,6 @@
 const Feedback = require('../models/Feedback');
 const Event = require('../models/Event');
+const Ticket = require('../models/Ticket');
 
 // @desc    Submit feedback
 // @route   POST /api/feedback
@@ -13,8 +14,20 @@ exports.submitFeedback = async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'Event not found' });
         }
 
-        // Check if event is completed (In a real app, you might want to wait)
-        // For this module, we allow it for any event the user might have attended.
+        // --- ATTENDANCE VERIFICATION ---
+        // Only allow feedback if user has a ticket AND has checked in
+        const ticket = await Ticket.findOne({
+            event: eventId,
+            user: req.user.id,
+            checkedIn: true
+        });
+
+        if (!ticket) {
+            return res.status(403).json({
+                success: false,
+                error: 'Authorization denied: Feedback can only be submitted for events you have actually attended.'
+            });
+        }
 
         const feedback = await Feedback.create({
             event: eventId,
