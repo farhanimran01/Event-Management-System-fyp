@@ -17,6 +17,12 @@ exports.bookTicket = async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'Event not found' });
         }
 
+        // --- PREVENT DUPLICATE BOOKING ---
+        const existingTicket = await Ticket.findOne({ event: eventId, user: req.user.id });
+        if (existingTicket) {
+            return res.status(400).json({ success: false, error: 'You have already booked a ticket for this event' });
+        }
+
         // Check if event is full
         let isWaitlisted = false;
         if (event.registeredUsers.length >= event.capacity) {

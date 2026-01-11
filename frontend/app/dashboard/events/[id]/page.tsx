@@ -50,6 +50,35 @@ export default function EventDetailsPage() {
         }
     };
 
+    const [booking, setBooking] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+
+    const handleBooking = async () => {
+        if (!user) return router.push('/login');
+        if (!selectedTicket) return alert("Please select an admission tier.");
+
+        setBooking(true);
+        try {
+            const res = await api.post('/tickets', {
+                eventId: event?._id,
+                ticketTypeName: selectedTicket
+            });
+
+            if (res.data.success) {
+                if (res.data.isWaitlisted) {
+                    alert("Event is full. You have been added to the waitlist.");
+                } else {
+                    alert("Ticket booked successfully!");
+                    router.push('/dashboard/attendee');
+                }
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Booking failed.");
+        } finally {
+            setBooking(false);
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-slate-400 gap-4">
             <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
@@ -66,7 +95,7 @@ export default function EventDetailsPage() {
     );
 
     const isFull = event.registeredUsers.length >= event.capacity;
-    const isRegistered = user && event.registeredUsers.includes(user.id);
+    const isRegistered = user && event.registeredUsers.some(u => (typeof u === 'string' ? u === user.id : (u as any)._id === user.id));
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -197,25 +226,34 @@ export default function EventDetailsPage() {
                             {activeTab === 'tickets' && (
                                 <div className="space-y-8 animate-in slide-in-from-bottom-5 duration-500">
                                     <div className="grid grid-cols-1 gap-6">
-                                        {event.ticketTypes.map((ticket, idx) => (
-                                            <div key={idx} className="p-8 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between group hover:border-blue-600 hover:bg-white transition-all shadow-hover duration-300">
-                                                <div className="flex items-center gap-6">
-                                                    <div className="p-4 bg-white text-blue-600 rounded-2xl shadow-sm border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                        <Ticket size={28} />
+                                        {event.ticketTypes.map((ticket, idx) => {
+                                            const isTicketFull = ticket.sold >= ticket.quantity;
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => !isTicketFull && setSelectedTicket(ticket.name)}
+                                                    className={`p-8 rounded-3xl border-2 flex items-center justify-between group transition-all shadow-hover duration-300 text-left w-full ${selectedTicket === ticket.name ? 'border-blue-600 bg-blue-50/10' : 'border-slate-100 bg-slate-50 hover:border-blue-400 hover:bg-white'} ${isTicketFull ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                >
+                                                    <div className="flex items-center gap-6">
+                                                        <div className={`p-4 rounded-2xl shadow-sm border border-slate-100 transition-colors ${selectedTicket === ticket.name ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 group-hover:bg-blue-500 group-hover:text-white'}`}>
+                                                            <Ticket size={28} />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-xl font-black text-slate-900">{ticket.name} Admission</h4>
+                                                            <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">
+                                                                {ticket.quantity - ticket.sold} Slots Available
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h4 className="text-xl font-black text-slate-900">{ticket.name} Admission</h4>
-                                                        <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">
-                                                            {ticket.quantity - ticket.sold} Slots Available
-                                                        </p>
+                                                    <div className="text-right">
+                                                        <p className="text-3xl font-black text-slate-900 mb-1">${ticket.price}</p>
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isTicketFull ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                            {isTicketFull ? 'Sold Out' : 'Tax Included'}
+                                                        </span>
                                                     </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-3xl font-black text-slate-900 mb-1">${ticket.price}</p>
-                                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Tax Included</span>
-                                                </div>
-                                            </div>
-                                        ))}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -235,11 +273,11 @@ export default function EventDetailsPage() {
                             <div className="space-y-6 mb-10">
                                 <div className="flex items-center justify-between pb-6 border-b border-slate-50">
                                     <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Occupancy</span>
-                                    <span className="text-lg font-black text-slate-900">{(event.registeredUsers.length / event.capacity * 100).toFixed(0)}% Full</span>
+                                    <span className="text-lg font-black text-slate-900">{Math.min(100, (event.registeredUsers.length / event.capacity * 100)).toFixed(0)}% Full</span>
                                 </div>
                                 <div className="flex items-center justify-between pb-6 border-b border-slate-50">
                                     <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Secure Slots</span>
-                                    <span className="text-lg font-black text-slate-900">{event.capacity - event.registeredUsers.length} Left</span>
+                                    <span className="text-lg font-black text-slate-900">{Math.max(0, event.capacity - event.registeredUsers.length)} Left</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Waitlist</span>
@@ -255,12 +293,21 @@ export default function EventDetailsPage() {
                                     <CheckCircle size={20} /> Access Admission Pack
                                 </button>
                             ) : isFull ? (
-                                <button className="w-full py-6 bg-slate-400 text-white rounded-[1.5rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 cursor-not-allowed">
-                                    <Users size={20} /> Join Strategic Waitlist
+                                <button
+                                    onClick={handleBooking}
+                                    disabled={booking}
+                                    className="w-full py-6 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-slate-200 transition-all hover:scale-[1.02] active:scale-95"
+                                >
+                                    {booking ? <Loader2 size={20} className="animate-spin" /> : <Users size={20} />}
+                                    Join Strategic Waitlist
                                 </button>
                             ) : (
-                                <button className="w-full py-6 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-95 group">
-                                    Initiate Reservation <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                                <button
+                                    onClick={handleBooking}
+                                    disabled={booking}
+                                    className="w-full py-6 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-95 group disabled:opacity-50"
+                                >
+                                    {booking ? <Loader2 size={20} className="animate-spin" /> : <><ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" /> Initiate Reservation</>}
                                 </button>
                             )}
 
