@@ -2,7 +2,7 @@
 
 import { useGoogleLogin } from '@react-oauth/google';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 
 interface GoogleLoginButtonProps {
@@ -11,7 +11,17 @@ interface GoogleLoginButtonProps {
   className?: string;
 }
 
-export function GoogleLoginButton({ onSuccess, onError, className = '' }: GoogleLoginButtonProps) {
+export function GoogleLoginButton(props: GoogleLoginButtonProps) {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    return null; // Don't even mount the component that uses the hook if no ID
+  }
+
+  return <GoogleLoginButtonInner {...props} />;
+}
+
+function GoogleLoginButtonInner({ onSuccess, onError, className = '' }: GoogleLoginButtonProps) {
   const router = useRouter();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -50,7 +60,7 @@ export function GoogleLoginButton({ onSuccess, onError, className = '' }: Google
           login({
             name: dbUser.name,
             email: dbUser.email,
-            role: dbUser.role || 'user',
+            role: dbUser.role || 'Attendee',
             googleAuth: true,
           });
         } else {
@@ -59,7 +69,7 @@ export function GoogleLoginButton({ onSuccess, onError, className = '' }: Google
           login({
             name: userData.name,
             email: userData.email,
-            role: 'user',
+            role: 'Attendee',
             googleAuth: true,
           });
         }
@@ -68,7 +78,7 @@ export function GoogleLoginButton({ onSuccess, onError, className = '' }: Google
         login({
           name: userData.name,
           email: userData.email,
-          role: 'user',
+          role: 'Attendee',
           googleAuth: true,
         });
       }
@@ -98,10 +108,6 @@ export function GoogleLoginButton({ onSuccess, onError, className = '' }: Google
     },
     flow: 'implicit',
   });
-
-  if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-    return null; // Don't render if Google Client ID is not set
-  }
 
   return (
     <button
@@ -134,3 +140,4 @@ export function GoogleLoginButton({ onSuccess, onError, className = '' }: Google
     </button>
   );
 }
+
