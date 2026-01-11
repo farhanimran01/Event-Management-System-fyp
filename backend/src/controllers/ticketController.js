@@ -170,19 +170,32 @@ exports.checkIn = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'Invalid QR code data' });
         }
 
-        const ticket = await Ticket.findById(parsedData.ticketId);
+        const ticket = await Ticket.findById(parsedData.ticketId).populate('event', 'title');
 
         if (!ticket) {
             return res.status(404).json({ success: false, error: 'Ticket not found' });
         }
 
+        // Security Check: Verify QR data matches ticket record
+        if (ticket.user.toString() !== parsedData.userId || ticket.event._id.toString() !== parsedData.eventId) {
+            return res.status(400).json({ success: false, error: 'Security breach: QR Data mismatch detected' });
+        }
+
         if (ticket.checkedIn) {
-            return res.status(400).json({ success: false, error: 'Attendee already checked in' });
+            return res.status(400).json({ success: false, error: 'Admission denied: Ticket already scanned' });
         }
 
         ticket.checkedIn = true;
         ticket.checkInTime = Date.now();
         await ticket.save();
+
+        // Notify Attendee of successful entry
+        await Notification.create({
+            user: ticket.user,
+            title: 'Welcome to the Event!',
+            message: `You have successfully checked in to "${ticket.event.title}". Enjoy your experience!`,
+            type: 'success'
+        });
 
         res.status(200).json({
             success: true,
