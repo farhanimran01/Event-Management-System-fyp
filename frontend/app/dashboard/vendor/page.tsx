@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Briefcase, FileText } from "lucide-react";
+import DashboardHeader from "@/app/components/DashboardHeader";
 
 export default function VendorDashboard() {
     const { user } = useAuth();
@@ -28,10 +29,10 @@ export default function VendorDashboard() {
     return (
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Vendor Portal</h1>
-                    <p className="text-gray-600">Managing for: {profile?.businessName || user?.name}</p>
-                </div>
+                <DashboardHeader
+                    title="Vendor Portal"
+                    subtitle={`Managing for: ${profile?.businessName || user?.name}`}
+                />
 
                 {!profile ? (
                     <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-xl mb-8">

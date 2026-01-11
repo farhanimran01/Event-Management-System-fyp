@@ -27,7 +27,7 @@ router
     .route('/:id/branch')
     .post(protect, authorize('Organizer', 'Admin'), createBranch);
 
-const { addFeedback, getEventFeedback } = require('../controllers/feedbackController');
+const { submitFeedback, getEventFeedback } = require('../controllers/feedbackController');
 
 // ... existing routes
 
@@ -35,7 +35,7 @@ const { addFeedback, getEventFeedback } = require('../controllers/feedbackContro
 router
     .route('/:eventId/feedback')
     .get(getEventFeedback)
-    .post(protect, addFeedback);
+    .post(protect, submitFeedback);
 
 module.exports = router;
 

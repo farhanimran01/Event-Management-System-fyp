@@ -22,8 +22,15 @@ exports.getEvents = async (req, res, next) => {
         // Create operators ($gt, $gte, etc)
         queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
+        let finalQuery = JSON.parse(queryStr);
+
+        // Handle title search
+        if (req.query.search) {
+            finalQuery.title = { $regex: req.query.search, $options: 'i' };
+        }
+
         // Finding resource
-        query = Event.find(JSON.parse(queryStr)).populate('organizer', 'name email');
+        query = Event.find(finalQuery).populate('organizer', 'name email');
 
         // Select Fields
         if (req.query.select) {

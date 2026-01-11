@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Ticket, Calendar, MapPin, Clock, Bell, Star, MessageSquare, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Ticket, Calendar, MapPin, Clock, Bell, Star, MessageSquare, CheckCircle, ExternalLink, Loader2, User } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import DashboardHeader from "@/app/components/DashboardHeader";
 
 interface TicketData {
     _id: string;
@@ -38,7 +39,7 @@ export default function AttendeeDashboard() {
     const [tickets, setTickets] = useState<TicketData[]>([]);
     const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'tickets' | 'notifications' | 'feedback'>('tickets');
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'notifications'>('upcoming');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -67,6 +68,9 @@ export default function AttendeeDashboard() {
         }
     };
 
+    const upcomingTickets = tickets.filter(t => new Date(t.event.date) >= new Date());
+    const pastTickets = tickets.filter(t => new Date(t.event.date) < new Date());
+
     if (loading) return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
@@ -74,143 +78,175 @@ export default function AttendeeDashboard() {
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-            <div className="max-w-6xl mx-auto">
-                <header className="mb-8">
-                    <h1 className="text-3xl font-bold text-slate-900">Welcome back, {user?.name}!</h1>
-                    <p className="text-slate-500">Manage your event registrations and stay updated.</p>
-                </header>
+        <div className="min-h-screen bg-slate-50 p-4 md:p-10">
+            <div className="max-w-7xl mx-auto space-y-10">
+                <DashboardHeader
+                    title={`Welcome back, ${user?.name}!`}
+                    subtitle="Manage your event registrations and stay updated."
+                />
 
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200 mb-8 w-fit">
-                    <button
-                        onClick={() => setActiveTab('tickets')}
-                        className={`px-6 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'tickets' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                        My Tickets ({tickets.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('notifications')}
-                        className={`px-6 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'notifications' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                        Notifications ({notifications.filter(n => !n.read).length})
-                    </button>
-                </div>
-
-                {activeTab === 'tickets' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 leading-relaxed">
-                        {tickets.map((ticket) => (
-                            <div key={ticket._id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col sm:flex-row hover:shadow-md transition group">
-                                <div className="p-6 flex-1 flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase ${ticket.checkedIn ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                    {ticket.checkedIn ? 'Checked In' : ticket.ticketType.name}
-                                                </span>
-                                                <h3 className="text-xl font-bold text-slate-900 mt-2 line-clamp-1">{ticket.event.title}</h3>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3 text-slate-600">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                                                    <Calendar className="w-4 h-4 text-slate-400" />
-                                                </div>
-                                                <span className="text-sm font-medium">{new Date(ticket.event.date).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                                                    <MapPin className="w-4 h-4 text-slate-400" />
-                                                </div>
-                                                <span className="text-sm font-medium">{ticket.event.location}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-8 pt-4 border-t border-slate-50 flex items-center justify-between">
-                                        <Link
-                                            href={`/events/${ticket.event._id}`}
-                                            className="text-sm text-blue-600 font-medium flex items-center gap-1 hover:underline"
-                                        >
-                                            Event Details <ExternalLink className="w-3 h-3" />
-                                        </Link>
-                                        <div className="text-right">
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Ticket ID</p>
-                                            <p className="text-xs font-mono text-slate-600">#{ticket._id.slice(-8)}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-slate-900 p-8 flex flex-col items-center justify-center sm:w-56 text-white relative border-l border-dashed border-slate-700/50">
-                                    <div className="w-8 h-8 bg-slate-50 rounded-full absolute -left-4 top-1/2 -translate-y-1/2 hidden sm:block shadow-inner" />
-
-                                    <div className="bg-white p-3 rounded-xl mb-4 group-hover:scale-105 transition duration-300">
-                                        {ticket.qrCode && (
-                                            <img
-                                                src={ticket.qrCode}
-                                                alt="Ticket QR Code"
-                                                className="w-32 h-32"
-                                            />
-                                        )}
-                                    </div>
-                                    <p className="text-[10px] text-slate-400 text-center uppercase tracking-widest font-bold">Entry Pass</p>
-                                    {ticket.checkedIn && (
-                                        <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center backdrop-blur-sm">
-                                            <CheckCircle className="w-12 h-12 text-green-500 mb-2" />
-                                            <span className="text-sm font-bold text-green-500 uppercase tracking-widest">Verified</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-
-                        {tickets.length === 0 && (
-                            <div className="col-span-full text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
-                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Ticket className="w-10 h-10 text-slate-300" />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900">No Tickets Yet</h3>
-                                <p className="text-slate-500 mb-8 max-w-xs mx-auto">Discover amazing events and book your spot to see tickets here.</p>
-                                <Link
-                                    href="/events"
-                                    className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-200 transition inline-block"
-                                >
-                                    Explore Events
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {activeTab === 'notifications' && (
-                    <div className="max-w-2xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="divide-y divide-slate-100">
-                            {notifications.length > 0 ? notifications.map((notif) => (
-                                <div
-                                    key={notif._id}
-                                    className={`p-6 hover:bg-slate-50 transition cursor-default flex gap-4 ${!notif.read ? 'bg-blue-50/30' : ''}`}
-                                    onClick={() => !notif.read && markAsRead(notif._id)}
-                                >
-                                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${!notif.read ? 'bg-blue-600' : 'bg-transparent'}`} />
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-start">
-                                            <h4 className={`text-sm font-bold ${!notif.read ? 'text-slate-900' : 'text-slate-600'}`}>
-                                                {notif.title}
-                                            </h4>
-                                            <span className="text-[10px] text-slate-400 font-medium">{new Date(notif.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <p className="text-sm text-slate-500 mt-1 leading-relaxed">{notif.message}</p>
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="p-20 text-center">
-                                    <Bell className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                                    <p className="text-slate-500 font-medium">No notifications yet.</p>
+                {/* Profile Summary & Stats */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <div className="lg:col-span-1 bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col items-center text-center">
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-50 bg-slate-100 shadow-lg mb-4">
+                            {user?.picture ? (
+                                <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                    <User size={40} />
                                 </div>
                             )}
                         </div>
+                        <h3 className="text-xl font-black text-slate-900">{user?.name}</h3>
+                        <p className="text-sm text-slate-500 font-medium truncate w-full mb-6">{user?.email}</p>
+
+                        <div className="w-full space-y-4 pt-6 border-t border-slate-50">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Role</span>
+                                <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase">{user?.role}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Location</span>
+                                <span className="text-xs font-bold text-slate-700">{user?.location || "Not set"}</span>
+                            </div>
+                        </div>
+
+                        <Link href="/dashboard/profile" className="mt-8 w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all">
+                            View Profile
+                        </Link>
                     </div>
-                )}
+
+                    <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-blue-600">
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Active Tickets</p>
+                            <h4 className="text-4xl font-black text-slate-900">{upcomingTickets.length}</h4>
+                        </div>
+                        <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-emerald-500">
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Passed Events</p>
+                            <h4 className="text-4xl font-black text-slate-900">{pastTickets.length}</h4>
+                        </div>
+                        <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-amber-500">
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Notifications</p>
+                            <h4 className="text-4xl font-black text-slate-900">{notifications.filter(n => !n.read).length}</h4>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex p-1 bg-slate-200/50 rounded-2xl w-fit">
+                            <button onClick={() => setActiveTab('upcoming')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>UPCOMING</button>
+                            <button onClick={() => setActiveTab('past')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'past' ? 'bg-white text-emerald-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>PAST</button>
+                            <button onClick={() => setActiveTab('notifications')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'notifications' ? 'bg-white text-amber-500 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>ALERTS</button>
+                        </div>
+                    </div>
+
+                    {(activeTab === 'upcoming' || activeTab === 'past') && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {(activeTab === 'upcoming' ? upcomingTickets : pastTickets).map((ticket) => (
+                                <div key={ticket._id} className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-slate-100 overflow-hidden flex flex-col sm:flex-row hover:shadow-2xl transition-all duration-500 group border-b-8 border-b-blue-600">
+                                    <div className="p-8 flex-1 flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                                                    {ticket.ticketType.name}
+                                                </div>
+                                                {ticket.checkedIn && (
+                                                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
+                                                        <CheckCircle size={14} /> Verified Entry
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <h3 className="text-2xl font-black text-slate-900 mb-6 group-hover:text-blue-600 transition-colors">{ticket.event.title}</h3>
+
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="p-2.5 bg-slate-50 rounded-xl text-slate-400">
+                                                        <Calendar size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event Date</p>
+                                                        <p className="text-sm font-bold text-slate-700">{new Date(ticket.event.date).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="p-2.5 bg-slate-50 rounded-xl text-slate-400">
+                                                        <MapPin size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</p>
+                                                        <p className="text-sm font-bold text-slate-700">{ticket.event.location}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                                            <Link href={`/events/${ticket.event._id}`} className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                                                Event Intel <ExternalLink size={14} />
+                                            </Link>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">ID</p>
+                                                <p className="text-xs font-mono font-bold text-slate-500">#{ticket._id.slice(-8)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {activeTab === 'upcoming' && (
+                                        <div className="bg-slate-900 p-10 flex flex-col items-center justify-center sm:w-64 text-white relative">
+                                            <div className="bg-white p-4 rounded-3xl mb-4 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                                                {ticket.qrCode ? (
+                                                    <img src={ticket.qrCode} alt="QR" className="w-32 h-32" />
+                                                ) : (
+                                                    <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-200">
+                                                        <Ticket size={40} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Scan to Enter</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {(activeTab === 'upcoming' ? upcomingTickets : pastTickets).length === 0 && (
+                                <div className="col-span-full py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
+                                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-200">
+                                        <Calendar size={48} />
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-900">No events found</h3>
+                                    <p className="text-slate-500 mt-2 max-w-sm font-medium">You don't have any {activeTab} registrations at the moment.</p>
+                                    <Link href="/dashboard/events" className="mt-8 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+                                        Explore Events
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'notifications' && (
+                        <div className="max-w-3xl space-y-4">
+                            {notifications.length > 0 ? notifications.map((notif) => (
+                                <div key={notif._id} onClick={() => !notif.read && markAsRead(notif._id)} className={`p-8 rounded-[2rem] border-2 transition-all cursor-pointer flex gap-6 ${!notif.read ? 'bg-white border-blue-100 shadow-xl shadow-blue-50' : 'bg-slate-50 border-transparent opacity-60'}`}>
+                                    <div className={`mt-2 w-3 h-3 rounded-full flex-shrink-0 ${!notif.read ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="text-lg font-black text-slate-900 leading-tight">{notif.title}</h4>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(notif.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                        <p className="text-slate-500 font-medium leading-relaxed">{notif.message}</p>
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
+                                    <Bell size={48} className="text-slate-200 mb-6" />
+                                    <p className="text-slate-500 font-bold uppercase tracking-widest">No alerts at this time</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

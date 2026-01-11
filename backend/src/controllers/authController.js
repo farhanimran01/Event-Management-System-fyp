@@ -122,7 +122,16 @@ exports.getMe = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            data: user,
+            data: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                picture: user.picture || user.profileImage,
+                phone: user.phone,
+                location: user.location,
+                createdAt: user.createdAt
+            },
         });
     } catch (err) {
         next(err);
@@ -189,7 +198,10 @@ const sendTokenResponse = (user, statusCode, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                picture: user.picture || user.profileImage,
+                phone: user.phone,
+                location: user.location
             }
         });
 };
