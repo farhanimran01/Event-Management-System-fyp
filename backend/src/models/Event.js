@@ -29,7 +29,8 @@ const eventSchema = new mongoose.Schema(
             default: 'Other',
         },
         organizer: {
-            type: String,
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
             required: true,
         },
         image: String,
@@ -40,15 +41,23 @@ const eventSchema = new mongoose.Schema(
         },
         registeredUsers: [
             {
-                type: String,
+                type: mongoose.Schema.Types.ObjectId,
                 ref: 'User',
             },
         ],
+        waitlist: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
+        ],
+        // Ticket Types Definition
         ticketTypes: [
             {
                 name: String,
                 price: Number,
                 quantity: Number,
+                sold: { type: Number, default: 0 },
             },
         ],
         status: {
@@ -65,11 +74,9 @@ const eventSchema = new mongoose.Schema(
                 speaker: String,
             }
         ],
-        backupPlans: {
-            type: String,
-            default: '',
-        },
-        isTemplate: {
+
+        // --- Branching & Lineage ---
+        isBranch: {
             type: Boolean,
             default: false,
         },
@@ -78,20 +85,52 @@ const eventSchema = new mongoose.Schema(
             ref: 'Event',
             default: null,
         },
+        branchName: {
+            type: String, // e.g., "Rainy Day Plan", "Budget Cut Version"
+            default: null,
+        },
         lineage: [
             {
                 timestamp: {
                     type: Date,
                     default: Date.now,
                 },
-                modifiedBy: String,
-                changes: mongoose.Schema.Types.Mixed,
+                modifiedBy: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'User',
+                },
+                action: String, // "CREATED", "BRANCHED", "UPDATED"
+                note: String,
             }
         ],
+
+        // --- Budget & Vendors ---
+        budget: {
+            total: { type: Number, default: 0 },
+            expenses: [
+                {
+                    title: String,
+                    amount: Number,
+                    category: String,
+                }
+            ]
+        },
+        vendors: [
+            {
+                vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Assuming Vendor is a User role
+                role: String, // e.g., "Catering", "Sound"
+                status: { type: String, enum: ['Pending', 'Confirmed', 'Declined'], default: 'Pending' }
+            }
+        ]
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
     }
 );
+
+// Cascade delete branches if parent is deleted? 
+// For now, let's keep them but maybe mark as orphaned or handle in controller.
 
 module.exports = mongoose.models.Event || mongoose.model('Event', eventSchema);
