@@ -20,11 +20,12 @@ exports.getProfile = async (req, res, next) => {
                 phone: user.phone,
                 location: user.location,
                 role: user.role,
-                picture: user.picture || user.profileImage,
+                picture: user.profileImage || user.picture,
                 createdAt: user.createdAt
             }
         });
     } catch (err) {
+        console.error('❌ GET PROFILE ERROR:', err);
         next(err);
     }
 };
@@ -34,26 +35,50 @@ exports.getProfile = async (req, res, next) => {
 // @access  Private
 exports.updateProfile = async (req, res, next) => {
     try {
-        const fieldsToUpdate = {
-            name: req.body.name,
-            phone: req.body.phone,
-            location: req.body.location,
-            profileImage: req.body.profileImage
-        };
+        console.log('--- STEP 1: Route Hit (Update Profile) ---');
+        console.log('User ID:', req.user.id);
+        console.log('Request Body:', req.body);
 
-        // Remove undefined fields
-        Object.keys(fieldsToUpdate).forEach(key => fieldsToUpdate[key] === undefined && delete fieldsToUpdate[key]);
+        const { name, phone, location, profileImage } = req.body;
+
+        const fieldsToUpdate = {};
+        if (name) fieldsToUpdate.name = name;
+        if (phone) fieldsToUpdate.phone = phone;
+        if (location) fieldsToUpdate.location = location;
+        if (profileImage) fieldsToUpdate.profileImage = profileImage;
 
         const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
             new: true,
             runValidators: true
         });
 
-        res.status(200).json({
+        if (user) {
+            console.log('--- STEP 2: MongoDB Operation Succeeded ---');
+            console.log('Updated User Data:', user.name, user.phone, user.location);
+        } else {
+            console.log('--- STEP 2: MongoDB Operation FAILED (User not found) ---');
+        }
+
+        const responseData = {
             success: true,
-            data: user
-        });
+            data: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                location: user.location,
+                role: user.role,
+                picture: user.profileImage || user.picture,
+                createdAt: user.createdAt
+            }
+        };
+
+        console.log('--- STEP 3: Returning HTTP 200 Response ---');
+        console.log('Response JSON:', JSON.stringify(responseData));
+
+        res.status(200).json(responseData);
     } catch (err) {
+        console.error('❌ UPDATE PROFILE ERROR (Step Failure):', err);
         next(err);
     }
 };
@@ -86,6 +111,7 @@ exports.updatePassword = async (req, res, next) => {
             message: 'Password updated successfully'
         });
     } catch (err) {
+        console.error('❌ UPDATE PASSWORD ERROR:', err);
         next(err);
     }
 };

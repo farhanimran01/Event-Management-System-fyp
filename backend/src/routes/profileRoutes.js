@@ -48,14 +48,19 @@ router.get('/', getProfile);
 router.put('/update', updateProfile);
 router.put('/change-password', updatePassword);
 router.post('/upload', protect, upload.single('image'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, error: 'No file uploaded' });
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No file uploaded' });
+        }
+        const publicPath = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        res.status(200).json({
+            success: true,
+            data: publicPath
+        });
+    } catch (err) {
+        console.error('❌ PROFILE UPLOAD ERROR:', err);
+        res.status(500).json({ success: false, error: 'File upload failed' });
     }
-    const publicPath = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    res.status(200).json({
-        success: true,
-        data: publicPath
-    });
 });
 
 module.exports = router;
