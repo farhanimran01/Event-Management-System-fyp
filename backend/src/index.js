@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 
 // Load env vars
 dotenv.config();
@@ -37,6 +38,13 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
 
+// Static folder
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+app.get('/', (req, res) => {
+    res.send('API is running...');
+});
+
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
@@ -44,12 +52,9 @@ app.use('/api/events', require('./routes/eventRoutes'));
 app.use('/api/tickets', require('./routes/ticketRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/profile', require('./routes/profileRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
-
-app.get('/', (req, res) => {
-    res.send('API is running...');
-});
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
