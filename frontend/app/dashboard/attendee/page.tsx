@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Ticket, Calendar, MapPin, Clock, Bell, Star, MessageSquare, CheckCircle, ExternalLink, Loader2 } from "lucide-react";
+import { Ticket, Calendar, MapPin, Clock, Bell, Star, MessageSquare, CheckCircle, ExternalLink, Loader2, User } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -76,9 +76,28 @@ export default function AttendeeDashboard() {
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
             <div className="max-w-6xl mx-auto">
-                <header className="mb-8">
-                    <h1 className="text-3xl font-bold text-slate-900">Welcome back, {user?.name}!</h1>
-                    <p className="text-slate-500">Manage your event registrations and stay updated.</p>
+                <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 font-outfit">Welcome back, {user?.name}!</h1>
+                        <p className="text-slate-500">Manage your event registrations and stay updated.</p>
+                    </div>
+                    <Link
+                        href="/dashboard/attendee/profile"
+                        className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-200 hover:border-blue-400 transition shadow-sm group"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center overflow-hidden">
+                            {user?.picture ? (
+                                <img src={user.picture} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="w-5 h-5 text-blue-600" />
+                            )}
+                        </div>
+                        <div className="pr-2">
+                            <p className="text-sm font-bold text-slate-800">My Profile</p>
+                            <p className="text-xs text-slate-500">Edit account settings</p>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition" />
+                    </Link>
                 </header>
 
                 <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200 mb-8 w-fit">

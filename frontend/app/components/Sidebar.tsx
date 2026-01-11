@@ -15,6 +15,7 @@ export function Sidebar({ activeView, onViewChange, isOpen, onClose }: SidebarPr
     { id: 'tickets', label: 'Tickets', icon: Ticket },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'profile', label: 'Profile', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -31,9 +32,8 @@ export function Sidebar({ activeView, onViewChange, isOpen, onClose }: SidebarPr
 
       {/* Sidebar */}
       <div
-        className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-40 transform transition-transform lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-40 transform transition-transform lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-[#4A6CF7]">EMS</h1>
@@ -55,11 +55,10 @@ export function Sidebar({ activeView, onViewChange, isOpen, onClose }: SidebarPr
                   onViewChange(item.id);
                   onClose();
                 }}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                  activeView === item.id
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${activeView === item.id
                     ? 'bg-[#4A6CF7] text-white'
                     : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
