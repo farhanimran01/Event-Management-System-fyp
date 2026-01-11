@@ -217,7 +217,7 @@ export default function AttendeeDashboard() {
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-900">No events found</h3>
                                     <p className="text-slate-500 mt-2 max-w-sm font-medium">You don't have any {activeTab} registrations at the moment.</p>
-                                    <Link href="/events" className="mt-8 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+                                    <Link href="/dashboard/events" className="mt-8 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
                                         Explore Events
                                     </Link>
                                 </div>
