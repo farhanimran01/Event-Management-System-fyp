@@ -29,17 +29,17 @@ const seedData = async () => {
             location: 'Kathmandu'
         });
 
-        // 2. Create Attendee
+        // 2. Create attendee with User role (User role only)
         const attendee = await User.create({
-            name: 'Sample Attendee',
-            email: 'attendee@example.com',
-            password: 'password123',
-            role: 'Attendee',
+            name: 'Sample Test User',
+            email: 'testuser@example.com',
+            password: 'TestUser@123',
+            role: 'User',
             phone: '9800000001',
             location: 'Lalitpur'
         });
 
-        console.log('Sample users created.');
+        console.log('Sample test user created.');
 
         // 3. Create Events
         const events = await Event.insertMany([

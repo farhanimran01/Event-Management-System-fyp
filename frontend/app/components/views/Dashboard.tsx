@@ -6,7 +6,7 @@ export function Dashboard() {
     { label: 'Total Events', value: '24', icon: Calendar, color: 'bg-blue-100' },
     { label: 'Total Users', value: '156', icon: Users, color: 'bg-green-100' },
     { label: 'Tickets Sold', value: '1,240', icon: Ticket, color: 'bg-purple-100' },
-    { label: 'Revenue', value: '$12,450', icon: BarChart3, color: 'bg-orange-100' },
+    { label: 'Revenue', value: 'NPR 12,450', icon: BarChart3, color: 'bg-orange-100' },
   ];
 
   return (

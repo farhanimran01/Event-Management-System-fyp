@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { User, Phone, MapPin, Camera, Lock, CheckCircle, AlertCircle, Save, X, Loader2 } from "lucide-react";
 
 interface ProfileData {
@@ -16,6 +17,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
+    const { updateUser } = useAuth();
     const [profile, setProfile] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -96,6 +98,13 @@ export default function ProfilePage() {
             const imageUrl = res.data.data;
 
             await api.put("/profile/update", { profileImage: imageUrl });
+            
+            // Update global user context to reflect profile picture change
+            updateUser({ 
+                picture: imageUrl,
+                profileImage: imageUrl 
+            });
+            
             setProfile(prev => prev ? { ...prev, picture: imageUrl } : null);
             setMessage({ type: "success", text: "Profile picture updated!" });
             setTimeout(() => setMessage({ type: "", text: "" }), 3000);
@@ -127,7 +136,8 @@ export default function ProfilePage() {
     );
 
     return (
-        <div className="max-w-5xl mx-auto p-4 md:p-10">
+        <div className="min-h-screen bg-white">
+            <div className="max-w-5xl mx-auto p-4 md:p-10">
             <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
                     <nav className="flex items-center gap-2 text-sm text-slate-400 mb-3">
@@ -299,62 +309,8 @@ export default function ProfilePage() {
                             )}
                         </form>
                     </section>
-
-                    <section className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-amber-500">
-                        <div className="flex items-center gap-4 mb-10">
-                            <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-lg shadow-amber-100">
-                                <Lock size={24} />
-                            </div>
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Security Credentials</h2>
-                        </div>
-
-                        <form onSubmit={handleChangePassword} className="space-y-8">
-                            <div className="space-y-2.5">
-                                <label className="text-sm font-black text-slate-700 uppercase tracking-wider ml-1">Current Password</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={passwordData.currentPassword}
-                                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                                    className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 focus:border-amber-500 focus:ring-4 focus:ring-amber-50 outline-none transition-all font-bold text-slate-700"
-                                    placeholder="Verify your existing password"
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-2.5">
-                                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider ml-1">New Secret Key</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={passwordData.newPassword}
-                                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                                        className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 focus:border-amber-500 focus:ring-4 focus:ring-amber-50 outline-none transition-all font-bold text-slate-700"
-                                        placeholder="Min 6 characters"
-                                    />
-                                </div>
-                                <div className="space-y-2.5">
-                                    <label className="text-sm font-black text-slate-700 uppercase tracking-wider ml-1">Confirm Secret Key</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={passwordData.confirmPassword}
-                                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                                        className="w-full px-6 py-4 rounded-2xl border-2 border-slate-100 focus:border-amber-500 focus:ring-4 focus:ring-amber-50 outline-none transition-all font-bold text-slate-700"
-                                        placeholder="Repeat new password"
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                className="w-full px-8 py-5 bg-slate-900 text-white rounded-2xl hover:bg-black hover:shadow-2xl hover:shadow-slate-300 transition-all font-black flex items-center justify-center gap-3"
-                            >
-                                <Lock size={20} />
-                                Refresh Security Token
-                            </button>
-                        </form>
-                    </section>
                 </div>
+            </div>
             </div>
         </div>
     );

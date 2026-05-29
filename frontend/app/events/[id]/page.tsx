@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from '@/lib/api';
 import { useAuth } from "@/context/AuthContext";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, GitBranch, History, Ticket as TicketIcon, Star, CheckCircle2, ShieldCheck, Info, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, GitBranch, History, Ticket as TicketIcon, Star, CheckCircle2, ShieldCheck, Info, Loader2, AlertCircle, Phone, Mail } from "lucide-react";
 import Link from "next/link";
 
 export default function EventDetailsPage() {
@@ -19,6 +19,7 @@ export default function EventDetailsPage() {
     const [feedback, setFeedback] = useState({ rating: 5, comment: "" });
     const [feedbackLoading, setFeedbackLoading] = useState(false);
     const [eventFeedback, setEventFeedback] = useState<any[]>([]);
+    const [showContactModal, setShowContactModal] = useState(false);
 
     useEffect(() => {
         const loadEventData = async () => {
@@ -44,23 +45,14 @@ export default function EventDetailsPage() {
 
     const handleBooking = async () => {
         if (!user) {
-            router.push(`/login?redirect=/events/${id}`);
+            router.push(`/login?redirect=/events/${id}/buy-ticket`);
             return;
         }
 
         setBookingLoading(true);
-        try {
-            const res = await api.post("/tickets", {
-                eventId: id,
-                ticketTypeName: ticketType
-            });
-            alert(res.data.message || "Action successful!");
-            router.push("/dashboard/attendee");
-        } catch (err: any) {
-            alert(err.response?.data?.error || "Booking failed");
-        } finally {
-            setBookingLoading(false);
-        }
+        // Redirect to buy-ticket page
+        router.push(`/events/${id}/buy-ticket`);
+        setBookingLoading(false);
     };
 
     const submitFeedback = async (e: React.FormEvent) => {
@@ -81,6 +73,25 @@ export default function EventDetailsPage() {
             alert(err.response?.data?.error || "Failed to submit feedback");
         } finally {
             setFeedbackLoading(false);
+        }
+    };
+
+    const handleContactOrganizer = async (method: 'email' | 'phone') => {
+        try {
+            await api.post('/contact/organizer', {
+                organizerId: event.organizer?._id,
+                eventId: id,
+                userEmail: user?.email || 'guest@anonymous.com',
+                userPhone: user?.phone || null,
+                message: `Contact inquiry for event: ${event.title}`,
+                contactMethod: method
+            });
+            alert(`Your inquiry has been logged. The organizer will be notified of your ${method} contact request.`);
+            setShowContactModal(false);
+        } catch (err: any) {
+            console.error('Failed to log contact inquiry:', err);
+            // Still allow the action even if logging fails
+            alert(`Opening ${method}. Your contact information is being processed.`);
         }
     };
 
@@ -189,7 +200,9 @@ export default function EventDetailsPage() {
                                     <p className="text-sm text-slate-500">Verified Organizer <ShieldCheck size={14} className="inline text-blue-500 ml-1" /></p>
                                 </div>
                             </div>
-                            <button className="px-6 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+                            <button 
+                                onClick={() => setShowContactModal(true)}
+                                className="px-6 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
                                 Contact
                             </button>
                         </div>
@@ -281,7 +294,7 @@ export default function EventDetailsPage() {
                                                 <p className={`font-bold ${ticketType === t.name ? 'text-blue-900' : 'text-slate-900'}`}>{t.name}</p>
                                                 <p className="text-[10px] text-slate-400 font-bold">{t.quantity - t.sold} spots remaining</p>
                                             </div>
-                                            <p className={`text-xl font-black ${ticketType === t.name ? 'text-blue-600' : 'text-slate-900'}`}>${t.price}</p>
+                                            <p className={`text-xl font-black ${ticketType === t.name ? 'text-blue-600' : 'text-slate-900'}`}>NPR {t.price}</p>
                                         </button>
                                     ))}
                                 </div>
@@ -295,7 +308,7 @@ export default function EventDetailsPage() {
                                 {bookingLoading ? <Loader2 className="w-6 h-6 animate-spin text-white" /> : (
                                     <>
                                         <TicketIcon className="w-6 h-6" />
-                                        {isFull ? "Join the Waitlist" : "Reserve Ticket"}
+                                        {isFull ? "Join the Waitlist" : "Buy Ticket"}
                                     </>
                                 )}
                             </button>
@@ -317,6 +330,130 @@ export default function EventDetailsPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Contact Modal */}
+                {showContactModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-8 text-white rounded-t-3xl">
+                                <h3 className="text-2xl font-black mb-2">Contact Organizer</h3>
+                                <p className="text-blue-100">Get in touch with {event.organizer?.name}</p>
+                            </div>
+
+                            {/* Content */}
+                            <div className="px-8 py-8 space-y-6">
+                                {/* Organizer Info */}
+                                <div className="bg-slate-50 p-6 rounded-2xl flex items-center gap-4">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center text-2xl font-black text-white flex-shrink-0">
+                                        {event.organizer?.organizerLogo ? (
+                                            <img src={event.organizer.organizerLogo} alt="Logo" className="w-full h-full object-cover rounded-2xl" />
+                                        ) : (
+                                            event.organizer?.name?.[0] || 'O'
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-black text-slate-900">{event.organizer?.name}</h4>
+                                        <p className="text-sm text-slate-500">Verified Event Organizer</p>
+                                    </div>
+                                </div>
+
+                                {/* Contact Details */}
+                                <div className="space-y-4">
+                                    {/* Phone */}
+                                    {event.organizer?.organizerContact && (
+                                        <div className="p-4 border border-slate-200 rounded-2xl">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Phone</p>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-slate-900 font-bold">{event.organizer.organizerContact}</p>
+                                                <button
+                                                    onClick={() => {
+                                                        handleContactOrganizer('phone');
+                                                        window.location.href = `tel:${event.organizer.organizerContact}`;
+                                                    }}
+                                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-sm transition flex items-center gap-2"
+                                                >
+                                                    <Phone size={16} /> Call
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Email */}
+                                    {event.organizer?.email && (
+                                        <div className="p-4 border border-slate-200 rounded-2xl">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Email</p>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-slate-900 font-bold">{event.organizer.email}</p>
+                                                <button
+                                                    onClick={() => {
+                                                        handleContactOrganizer('email');
+                                                        window.location.href = `mailto:${event.organizer.email}?subject=Inquiry about ${event.title} event`;
+                                                    }}
+                                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition flex items-center gap-2"
+                                                >
+                                                    <Mail size={16} /> Email
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Locations */}
+                                    {event.organizer?.organizerLocations && event.organizer.organizerLocations.length > 0 && (
+                                        <div className="p-4 border border-slate-200 rounded-2xl">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Operating Locations</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {event.organizer.organizerLocations.map((location: string, idx: number) => (
+                                                    <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-bold rounded-lg">
+                                                        {location}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Call Log Note */}
+                                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200">
+                                    <p className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">Note</p>
+                                    <p className="text-sm text-amber-600">
+                                        Your contact information will be logged for the organizer's records. They may reach back to you regarding your inquiry about this event.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-8 py-6 border-t border-slate-100 flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        handleContactOrganizer('email');
+                                        window.location.href = `mailto:${event.organizer?.email}?subject=Inquiry about ${event.title} event`;
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition flex items-center justify-center gap-2"
+                                >
+                                    <Mail size={18} /> Send Email
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (event.organizer?.organizerContact) {
+                                            handleContactOrganizer('phone');
+                                            window.location.href = `tel:${event.organizer.organizerContact}`;
+                                        }
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition flex items-center justify-center gap-2"
+                                >
+                                    <Phone size={18} /> Call
+                                </button>
+                                <button
+                                    onClick={() => setShowContactModal(false)}
+                                    className="flex-1 px-6 py-3 bg-slate-300 hover:bg-slate-400 text-slate-900 font-bold rounded-xl transition"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

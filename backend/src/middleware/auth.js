@@ -49,3 +49,36 @@ exports.authorize = (...roles) => {
         next();
     };
 };
+
+// Middleware to ensure user is an Organizer
+exports.isOrganizer = (req, res, next) => {
+    if (req.user.role !== 'Organizer') {
+        return res.status(403).json({
+            success: false,
+            error: 'Access denied. This route is only accessible to Organizers.',
+        });
+    }
+    next();
+};
+
+// Middleware to ensure user is a regular User
+exports.isUser = (req, res, next) => {
+    if (req.user.role !== 'User') {
+        return res.status(403).json({
+            success: false,
+            error: 'Access denied. This route is only accessible to Users.',
+        });
+    }
+    next();
+};
+
+// Middleware to ensure user is an Admin
+exports.isAdmin = (req, res, next) => {
+    if (req.user.role !== 'Admin') {
+        return res.status(403).json({
+            success: false,
+            error: 'Access denied. This route is only accessible to Admins.',
+        });
+    }
+    next();
+};

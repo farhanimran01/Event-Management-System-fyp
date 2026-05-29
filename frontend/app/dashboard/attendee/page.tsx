@@ -2,9 +2,8 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Ticket, Calendar, MapPin, Clock, Bell, Star, MessageSquare, CheckCircle, ExternalLink, Loader2, User } from "lucide-react";
+import { Ticket, Calendar, MapPin, CheckCircle, ExternalLink, Loader2, User, Download } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import DashboardHeader from "@/app/components/DashboardHeader";
 
 interface TicketData {
@@ -25,56 +24,17 @@ interface TicketData {
     checkedIn: boolean;
 }
 
-interface NotificationData {
-    _id: string;
-    title: string;
-    message: string;
-    type: 'info' | 'success' | 'warning' | 'error';
-    read: boolean;
-    createdAt: string;
-}
-
 export default function AttendeeDashboard() {
     const { user } = useAuth();
     const [tickets, setTickets] = useState<TicketData[]>([]);
-    const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'notifications'>('upcoming');
-    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-    const [selectedEventId, setSelectedEventId] = useState("");
-    const [feedbackRating, setFeedbackRating] = useState(5);
-    const [feedbackComment, setFeedbackComment] = useState("");
-    const [submittingFeedback, setSubmittingFeedback] = useState(false);
-
-    const submitFeedback = async () => {
-        if (!feedbackComment) return alert("Please share a brief comment about your experience.");
-        setSubmittingFeedback(true);
-        try {
-            await api.post("/feedback", {
-                eventId: selectedEventId,
-                rating: feedbackRating,
-                comment: feedbackComment
-            });
-            alert("Digital debriefing successful. Your feedback has been logged.");
-            setShowFeedbackModal(false);
-            setFeedbackComment("");
-            setFeedbackRating(5);
-        } catch (err: any) {
-            alert(err.response?.data?.error || "Feedback transmission failed.");
-        } finally {
-            setSubmittingFeedback(false);
-        }
-    };
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [ticketsRes, notificationsRes] = await Promise.all([
-                    api.get("/tickets/me"),
-                    api.get("/notifications")
-                ]);
+                const ticketsRes = await api.get("/tickets/me");
                 setTickets(ticketsRes.data.data);
-                setNotifications(notificationsRes.data.data);
             } catch (err) {
                 console.error("Failed to fetch dashboard data", err);
             } finally {
@@ -84,17 +44,71 @@ export default function AttendeeDashboard() {
         fetchData();
     }, []);
 
-    const markAsRead = async (id: string) => {
+    const downloadTicket = async (ticket: TicketData) => {
         try {
-            await api.put(`/notifications/${id}/read`);
-            setNotifications(notifications.map(n => n._id === id ? { ...n, read: true } : n));
+            setDownloadingId(ticket._id);
+            // Create a canvas to generate PDF-like ticket
+            const canvas = document.createElement('canvas');
+            canvas.width = 800;
+            canvas.height = 600;
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+                // Background
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // White border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                
+                // Title
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 32px Arial';
+                ctx.fillText('Event Ticket', 40, 60);
+                
+                // Event name
+                ctx.font = 'bold 24px Arial';
+                ctx.fillText(ticket.event.title, 40, 120);
+                
+                // Details
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillText(`Ticket Type: ${ticket.ticketType.name}`, 40, 180);
+                ctx.fillText(`Date: ${new Date(ticket.event.date).toLocaleDateString()}`, 40, 220);
+                ctx.fillText(`Location: ${ticket.event.location}`, 40, 260);
+                ctx.fillText(`Price: NPR ${ticket.ticketType.price}`, 40, 300);
+                ctx.fillText(`Ticket ID: ${ticket._id.slice(-8)}`, 40, 340);
+                
+                // QR Code placeholder
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('QR Code:', 40, 420);
+                if (ticket.qrCode) {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 550, 380, 200, 200);
+                        downloadCanvas(canvas, ticket.event.title);
+                    };
+                    img.src = ticket.qrCode;
+                } else {
+                    downloadCanvas(canvas, ticket.event.title);
+                }
+            }
         } catch (err) {
-            console.error("Failed to mark notification as read", err);
+            console.error("Error downloading ticket:", err);
+            alert("Failed to download ticket");
+            setDownloadingId(null);
         }
     };
 
-    const upcomingTickets = tickets.filter(t => new Date(t.event.date) >= new Date());
-    const pastTickets = tickets.filter(t => new Date(t.event.date) < new Date());
+    const downloadCanvas = (canvas: HTMLCanvasElement, eventTitle: string) => {
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `${eventTitle.replace(/\s+/g, '_')}_ticket.png`;
+        link.click();
+        setDownloadingId(null);
+    };
 
     if (loading) return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -105,10 +119,15 @@ export default function AttendeeDashboard() {
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-10">
             <div className="max-w-7xl mx-auto space-y-10">
-                <DashboardHeader
-                    title={`Welcome back, ${user?.name}!`}
-                    subtitle="Manage your event registrations and stay updated."
-                />
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <DashboardHeader
+                        title={`Welcome back, ${user?.name}!`}
+                        subtitle="View and manage all your purchased tickets here."
+                    />
+                    <Link href="/dashboard/events" className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-slate-200 flex items-center gap-2">
+                        <MapPin size={20} /> Browse Events
+                    </Link>
+                </div>
 
                 {/* Profile Summary & Stats */}
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -136,217 +155,132 @@ export default function AttendeeDashboard() {
                             </div>
                         </div>
 
-                        <Link href="/dashboard/profile" className="mt-8 w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all">
+                        <Link href="/dashboard/user/profile" className="mt-8 w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all">
                             View Profile
                         </Link>
                     </div>
 
-                    <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-blue-600">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Active Tickets</p>
-                            <h4 className="text-4xl font-black text-slate-900">{upcomingTickets.length}</h4>
-                        </div>
-                        <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-emerald-500">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Passed Events</p>
-                            <h4 className="text-4xl font-black text-slate-900">{pastTickets.length}</h4>
-                        </div>
-                        <div className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-amber-500">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Notifications</p>
-                            <h4 className="text-4xl font-black text-slate-900">{notifications.filter(n => !n.read).length}</h4>
-                        </div>
+                    <div className="lg:col-span-3 bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 border-l-8 border-l-blue-600">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total Tickets</p>
+                        <h4 className="text-5xl font-black text-slate-900 mb-4">{tickets.length}</h4>
+                        <p className="text-slate-500 font-medium">All your purchased event tickets are displayed below. Download any ticket to view or share it.</p>
                     </div>
                 </div>
 
-                {/* Main Content Area */}
+                {/* My Tickets Section */}
                 <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex p-1 bg-slate-200/50 rounded-2xl w-fit">
-                            <button onClick={() => setActiveTab('upcoming')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'upcoming' ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>UPCOMING</button>
-                            <button onClick={() => setActiveTab('past')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'past' ? 'bg-white text-emerald-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>PAST</button>
-                            <button onClick={() => setActiveTab('notifications')} className={`px-8 py-3 rounded-xl text-sm font-black transition-all ${activeTab === 'notifications' ? 'bg-white text-amber-500 shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}>ALERTS</button>
-                        </div>
+                    <div>
+                        <h2 className="text-3xl font-black text-slate-900 mb-2">My Tickets</h2>
+                        <p className="text-slate-500 font-medium">View all your purchased tickets and download them as needed.</p>
                     </div>
 
-                    {(activeTab === 'upcoming' || activeTab === 'past') && (
+                    {tickets.length > 0 ? (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            {(activeTab === 'upcoming' ? upcomingTickets : pastTickets).map((ticket) => (
-                                <div key={ticket._id} className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-slate-100 overflow-hidden flex flex-col sm:flex-row hover:shadow-2xl transition-all duration-500 group border-b-8 border-b-blue-600">
-                                    <div className="p-8 flex-1 flex flex-col justify-between">
-                                        <div>
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                                                    {ticket.ticketType.name}
-                                                </div>
-                                                {ticket.checkedIn && (
-                                                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
-                                                        <CheckCircle size={14} /> Verified Entry
+                            {tickets.map((ticket) => {
+                                const isUpcoming = new Date(ticket.event.date) >= new Date();
+                                return (
+                                    <div key={ticket._id} className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-slate-100 overflow-hidden flex flex-col sm:flex-row hover:shadow-2xl transition-all duration-500 group border-b-8 border-b-blue-600">
+                                        <div className="p-8 flex-1 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex justify-between items-start mb-6">
+                                                    <div className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                                                        {ticket.ticketType.name}
                                                     </div>
-                                                )}
-                                            </div>
-                                            <h3 className="text-2xl font-black text-slate-900 mb-6 group-hover:text-blue-600 transition-colors">{ticket.event.title}</h3>
+                                                    {ticket.checkedIn && (
+                                                        <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
+                                                            <CheckCircle size={14} /> Verified Entry
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <h3 className="text-2xl font-black text-slate-900 mb-6 group-hover:text-blue-600 transition-colors">{ticket.event.title}</h3>
 
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-2.5 bg-slate-50 rounded-xl text-slate-400">
-                                                        <Calendar size={18} />
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-2.5 bg-slate-50 rounded-xl text-slate-400">
+                                                            <Calendar size={18} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event Date</p>
+                                                            <p className="text-sm font-bold text-slate-700">{new Date(ticket.event.date).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Event Date</p>
-                                                        <p className="text-sm font-bold text-slate-700">{new Date(ticket.event.date).toLocaleDateString(undefined, { dateStyle: 'full' })}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-2.5 bg-slate-50 rounded-xl text-slate-400">
-                                                        <MapPin size={18} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</p>
-                                                        <p className="text-sm font-bold text-slate-700">{ticket.event.location}</p>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-2.5 bg-slate-50 rounded-xl text-slate-400">
+                                                            <MapPin size={18} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</p>
+                                                            <p className="text-sm font-bold text-slate-700">{ticket.event.location}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                                            <div className="flex gap-4">
-                                                <Link href={`/dashboard/events/${ticket.event._id}`} className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
-                                                    Event Intel <ExternalLink size={14} />
+                                            <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                                                <Link href={`/events/${ticket.event._id}`} className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                                                    Event Details <ExternalLink size={14} />
                                                 </Link>
-                                                {activeTab === 'past' && ticket.checkedIn && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedEventId(ticket.event._id);
-                                                            setShowFeedbackModal(true);
-                                                        }}
-                                                        className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all"
-                                                    >
-                                                        Share Experience <MessageSquare size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">ID</p>
-                                                <p className="text-xs font-mono font-bold text-slate-500">#{ticket._id.slice(-8)}</p>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">ID</p>
+                                                    <p className="text-xs font-mono font-bold text-slate-500">#{ticket._id.slice(-8)}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {activeTab === 'upcoming' && (
-                                        <div className="bg-slate-900 p-10 flex flex-col items-center justify-center sm:w-64 text-white relative">
-                                            <div className="bg-white p-4 rounded-3xl mb-4 shadow-2xl group-hover:scale-110 transition-transform duration-500 relative">
+                                        <div className="bg-slate-900 p-8 flex flex-col items-center justify-between sm:w-64 text-white">
+                                            <div className="bg-white p-4 rounded-3xl shadow-2xl group-hover:scale-110 transition-transform duration-500 relative">
                                                 {ticket.qrCode ? (
                                                     <>
-                                                        <img src={ticket.qrCode} alt="QR" className={`w-32 h-32 transition-all ${ticket.checkedIn ? 'opacity-20 grayscale scale-95' : ''}`} />
+                                                        <img src={ticket.qrCode} alt="QR" className={`w-40 h-40 transition-all ${ticket.checkedIn ? 'opacity-20 grayscale scale-95' : ''}`} />
                                                         {ticket.checkedIn && (
                                                             <div className="absolute inset-0 flex items-center justify-center animate-in zoom-in duration-300">
-                                                                <CheckCircle className="text-emerald-500 w-16 h-16 drop-shadow-lg" strokeWidth={3} />
+                                                                <CheckCircle className="text-emerald-500 w-20 h-20 drop-shadow-lg" strokeWidth={3} />
                                                             </div>
                                                         )}
                                                     </>
                                                 ) : (
-                                                    <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-200">
-                                                        <Ticket size={40} />
+                                                    <div className="w-40 h-40 flex items-center justify-center bg-slate-50 text-slate-200 rounded-2xl">
+                                                        <Ticket size={50} />
                                                     </div>
                                                 )}
                                             </div>
-                                            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${ticket.checkedIn ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                            <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-4 ${ticket.checkedIn ? 'text-emerald-400' : 'text-slate-400'}`}>
                                                 {ticket.checkedIn ? 'Entry Verified' : 'Scan to Enter'}
                                             </p>
+                                            <button
+                                                onClick={() => downloadTicket(ticket)}
+                                                disabled={downloadingId === ticket._id}
+                                                className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all"
+                                            >
+                                                {downloadingId === ticket._id ? (
+                                                    <>
+                                                        <Loader2 size={16} className="animate-spin" /> Downloading
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Download size={16} /> Download
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-                            ))}
-
-                            {(activeTab === 'upcoming' ? upcomingTickets : pastTickets).length === 0 && (
-                                <div className="col-span-full py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
-                                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-200">
-                                        <Calendar size={48} />
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900">No events found</h3>
-                                    <p className="text-slate-500 mt-2 max-w-sm font-medium">You don't have any {activeTab} registrations at the moment.</p>
-                                    <Link href="/dashboard/events" className="mt-8 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
-                                        Explore Events
-                                    </Link>
-                                </div>
-                            )}
+                                );
+                            })}
                         </div>
-                    )}
-
-                    {activeTab === 'notifications' && (
-                        <div className="max-w-3xl space-y-4">
-                            {notifications.length > 0 ? notifications.map((notif) => (
-                                <div key={notif._id} onClick={() => !notif.read && markAsRead(notif._id)} className={`p-8 rounded-[2rem] border-2 transition-all cursor-pointer flex gap-6 ${!notif.read ? 'bg-white border-blue-100 shadow-xl shadow-blue-50' : 'bg-slate-50 border-transparent opacity-60'}`}>
-                                    <div className={`mt-2 w-3 h-3 rounded-full flex-shrink-0 ${!notif.read ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h4 className="text-lg font-black text-slate-900 leading-tight">{notif.title}</h4>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(notif.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <p className="text-slate-500 font-medium leading-relaxed">{notif.message}</p>
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
-                                    <Bell size={48} className="text-slate-200 mb-6" />
-                                    <p className="text-slate-500 font-bold uppercase tracking-widest">No alerts at this time</p>
-                                </div>
-                            )}
+                    ) : (
+                        <div className="py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
+                            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-200">
+                                <Ticket size={48} />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-900">No tickets yet</h3>
+                            <p className="text-slate-500 mt-2 max-w-sm font-medium">You haven't purchased any tickets yet. Browse events and get your tickets now!</p>
+                            <Link href="/dashboard/events" className="mt-8 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+                                Explore Events
+                            </Link>
                         </div>
                     )}
                 </div>
             </div>
-
-            {/* Feedback Modal */}
-            {showFeedbackModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-0">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowFeedbackModal(false)} />
-                    <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative animate-in fade-in zoom-in duration-300 border border-slate-100">
-                        <div className="absolute top-8 right-8 cursor-pointer text-slate-400 hover:text-slate-600" onClick={() => setShowFeedbackModal(false)}>
-                            <Bell size={24} className="rotate-45" />
-                        </div>
-
-                        <div className="mb-8">
-                            <h3 className="text-3xl font-black text-slate-900 mb-2 mt-2">Share Experience</h3>
-                            <p className="text-slate-500 font-medium">Your tactical feedback helps us optimize future operations.</p>
-                        </div>
-
-                        <div className="space-y-8">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Mission Rating</label>
-                                <div className="flex gap-3">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <button
-                                            key={star}
-                                            onClick={() => setFeedbackRating(star)}
-                                            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${feedbackRating >= star ? 'bg-amber-100 text-amber-500 shadow-lg shadow-amber-50' : 'bg-slate-50 text-slate-300'}`}
-                                        >
-                                            <Star size={24} fill={feedbackRating >= star ? "currentColor" : "none"} />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Post-Mission Debrief</label>
-                                <textarea
-                                    className="w-full p-6 bg-slate-50 border-2 border-slate-50 rounded-3xl outline-none focus:bg-white focus:border-blue-500 transition-all font-bold text-slate-700 placeholder:text-slate-300 min-h-[150px]"
-                                    placeholder="What went well? What could be optimized..."
-                                    value={feedbackComment}
-                                    onChange={(e) => setFeedbackComment(e.target.value)}
-                                />
-                            </div>
-
-                            <button
-                                onClick={submitFeedback}
-                                disabled={submittingFeedback}
-                                className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest shadow-xl shadow-blue-100 flex items-center justify-center gap-3 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
-                            >
-                                {submittingFeedback ? <Loader2 className="animate-spin" /> : <>Log Debrief <CheckCircle size={20} /></>}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

@@ -32,20 +32,20 @@ const userSchema = new mongoose.Schema(
         picture: String,
         role: {
             type: String,
-            enum: ['Admin', 'Organizer', 'Vendor', 'Attendee'],
-            default: 'Attendee',
+            enum: ['Admin', 'Organizer', 'User'],
+            default: 'User',
         },
         phone: String,
         location: String,
         profileImage: String,
-
-        // Role-specific fields can be added here or in separate models if they grow too large
-        organizationName: String, // For Organizer/Vendor
-        skills: [String], // For Vendor
-
+        
+        // Organizer-specific fields
+        organizerLogo: String,
+        organizerContact: String,
+        organizerLocations: [String],
         verified: {
             type: Boolean,
-            default: true,
+            default: false,
         },
         verificationToken: String,
         verificationTokenExpire: Date,

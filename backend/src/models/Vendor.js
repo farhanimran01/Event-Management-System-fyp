@@ -24,6 +24,13 @@ const vendorSchema = new mongoose.Schema(
                 unitPrice: Number,
             }
         ],
+        availability: [
+            {
+                date: Date,
+                status: { type: String, enum: ['Available', 'Busy'], default: 'Available' },
+                note: String
+            }
+        ],
         contracts: [
             {
                 event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },

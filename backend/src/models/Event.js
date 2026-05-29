@@ -26,7 +26,7 @@ const eventSchema = new mongoose.Schema(
         category: {
             type: String,
             enum: ['Technology', 'Business', 'Education', 'Entertainment', 'Sports', 'Other'],
-            default: 'Other',
+            required: [true, 'Please select an event category'],
         },
         organizer: {
             type: mongoose.Schema.Types.ObjectId,
@@ -106,7 +106,8 @@ const eventSchema = new mongoose.Schema(
 
         // --- Budget & Vendors ---
         budget: {
-            total: { type: Number, default: 0 },
+            limit: { type: Number, default: 0 },
+            total: { type: Number, default: 0 }, // Revenue from ticket sales
             expenses: [
                 {
                     title: String,
@@ -120,6 +121,15 @@ const eventSchema = new mongoose.Schema(
                 vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Assuming Vendor is a User role
                 role: String, // e.g., "Catering", "Sound"
                 status: { type: String, enum: ['Pending', 'Confirmed', 'Declined'], default: 'Pending' }
+            }
+        ],
+        tasks: [
+            {
+                title: String,
+                description: String,
+                assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                deadline: Date,
+                status: { type: String, enum: ['Pending', 'In-Progress', 'Completed'], default: 'Pending' }
             }
         ]
     },

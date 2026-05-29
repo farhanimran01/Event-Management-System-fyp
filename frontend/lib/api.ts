@@ -11,22 +11,14 @@ const api = axios.create({
     withCredentials: true, // For cookies
 });
 
-// Add a request interceptor to attach the token if available (though cookies handle it usually, 
-// if we use localStorage or want to be explicit we add Authorization header)
+// Add a request interceptor to attach the token if available
 api.interceptors.request.use(
     (config) => {
-        // If we were using localStorage:
-        // const token = localStorage.getItem('token');
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
-
-        // Since we are using cookies handled by backend for browser, we might not need this 
-        // BUT if we want to read the cookie manually if it's not httpOnly:
-        // const token = Cookies.get('token');
-        // if (token) {
-        //    config.headers.Authorization = `Bearer ${token}`;
-        // }
+        // Try to get token from localStorage (stored during login)
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
     },
     (error) => {

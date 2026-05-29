@@ -1,60 +1,52 @@
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
+const ErrorResponse = require('../utils/ErrorResponse');
+const Logger = require('../utils/logger');
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res, next) => {
     try {
-        console.log("👉 REGISTER REQUEST RECEIVED:", req.body);
-        const { name, email, password, role, phone, location } = req.body;
+        Logger.request(req);
+        const { name, email, password, phone, location, role } = req.body;
 
         // 1. Validate fields
-        if (!name || !email || !password || !role) {
-            console.log("❌ Validation Failed: Missing fields");
-            return res.status(400).json({ success: false, error: 'Please provide all required fields (name, email, password, role)' });
+        if (!name || !email || !password) {
+            Logger.warn('Registration validation failed: Missing required fields');
+            return next(new ErrorResponse('Please provide all required fields (name, email, password)', 400));
         }
 
-        // 2. Check duplicate
+        // 2. Validate role
+        const validRoles = ['Admin', 'Organizer', 'User'];
+        const userRole = role && validRoles.includes(role) ? role : 'User';
+
+        // 3. Check duplicate
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            console.log("❌ Registration Failed: Email already exists (Explicit Check)");
-            return res.status(409).json({ success: false, message: 'Email already exists', error: 'Email already exists' });
+            Logger.warn('Registration failed: Email already exists', { email });
+            return next(new ErrorResponse('This email is already registered. Please use a different email or log in.', 409));
         }
 
-        // 3. Create User (Include phone/location)
+        // 4. Create User with selected role
         const user = await User.create({
             name,
             email,
             password,
-            role,
+            role: userRole,
             phone,
             location
         });
 
-        console.log("✅ User Created Successfully:", user._id);
+        Logger.success('User registered successfully', { userId: user._id, role: user.role });
 
-        // 4. Return success (Skip email verification for now)
-        return res.status(201).json({
-            success: true,
-            message: 'Registration successful. You can now log in.',
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
-        });
+        // 5. Automatically authenticate the user after registration
+        sendTokenResponse(user, 201, res);
 
     } catch (err) {
-        console.error("❌ REGISTER CONTROLLER ERROR:", err);
-        // Handle Mongoose duplicate key if race condition
-        if (err.code === 11000) {
-            console.log("❌ Registration Failed: Email already exists (Mongo Error)");
-            return res.status(409).json({ success: false, message: "Email already exists", error: "Email already exists" });
-        }
-        return res.status(500).json({ success: false, message: "Server Error", error: 'Server Error during registration' });
+        Logger.error('Registration error', err);
+        next(err);
     }
 };
 
@@ -114,6 +106,25 @@ exports.getMe = async (req, res, next) => {
                 location: user.location,
                 createdAt: user.createdAt
             },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @desc    Logout user / clear cookie
+// @route   POST /api/auth/logout
+// @access  Public
+exports.logout = async (req, res, next) => {
+    try {
+        res.cookie('token', 'none', {
+            expires: new Date(Date.now() + 10 * 1000), // 10 seconds
+            httpOnly: true,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'User logged out successfully',
         });
     } catch (err) {
         next(err);

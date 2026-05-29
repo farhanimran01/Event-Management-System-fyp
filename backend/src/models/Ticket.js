@@ -16,12 +16,31 @@ const ticketSchema = new mongoose.Schema(
             name: { type: String, required: true },
             price: { type: Number, required: true },
         },
+        quantity: {
+            type: Number,
+            default: 1,
+        },
+        totalPrice: {
+            type: Number,
+        },
         paymentStatus: {
             type: String,
-            enum: ['pending', 'paid', 'failed', 'refunded'],
+            enum: ['pending', 'completed', 'failed', 'refunded'],
             default: 'pending',
         },
+        paymentProvider: {
+            type: String,
+            enum: ['esewa', 'stripe', 'paypal', 'cash'],
+        },
+        paymentDetails: {
+            transactionId: String,
+            pidx: String,
+            verifiedAt: Date,
+        },
         paymentId: {
+            type: String,
+        },
+        esewaPid: {
             type: String,
         },
         qrCode: {
@@ -35,7 +54,12 @@ const ticketSchema = new mongoose.Schema(
         },
         checkInTime: {
             type: Date,
-        }
+        },
+        status: {
+            type: String,
+            enum: ['Pending', 'Confirmed', 'Cancelled', 'Used'],
+            default: 'Pending',
+        },
     },
     {
         timestamps: true,

@@ -49,11 +49,20 @@ exports.getAdminAnalytics = async (req, res, next) => {
 // @access  Private (Organizer)
 exports.getOrganizerAnalytics = async (req, res, next) => {
     try {
-        const events = await Event.find({ organizer: req.user.id }).select('budget ticketTypes title date');
+        const events = await Event.find({ organizer: req.user.id })
+            .select('budget ticketTypes title date isBranch parentEvent vendors');
 
         let totalIncome = 0;
         let totalExpenses = 0;
         const eventStats = [];
+
+        // Map events to count branches later
+        const branchCounts = {};
+        events.forEach(e => {
+            if (e.parentEvent) {
+                branchCounts[e.parentEvent] = (branchCounts[e.parentEvent] || 0) + 1;
+            }
+        });
 
         events.forEach(event => {
             let eventIncome = 0;
@@ -80,7 +89,11 @@ exports.getOrganizerAnalytics = async (req, res, next) => {
                 date: event.date,
                 income: eventIncome,
                 expenses: eventExpenses,
-                profit: eventIncome - eventExpenses
+                profit: eventIncome - eventExpenses,
+                isBranch: event.isBranch,
+                branchCount: branchCounts[event._id] || 0,
+                vendorCount: event.vendors ? event.vendors.length : 0,
+                budgetTotal: event.budget ? event.budget.total : 0
             });
         });
 

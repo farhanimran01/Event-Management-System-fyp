@@ -1,76 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, ArrowRight } from "lucide-react";
 
 export default function SignupPage() {
-  const { register, error: authError } = useAuth();
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    phone: "",
-    location: "",
-    role: "Attendee", // Default role
-  });
+  useEffect(() => {
+    // Redirect to user signup page
+    router.push("/register/user");
+  }, [router]);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    setError("");
-
-    // Validation
-    if (!formData.name || !formData.email || !formData.password) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      console.log("👉 Sending Registration Data:", {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        phone: formData.phone
-      });
-      await register({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        location: formData.location,
-        role: formData.role
-      });
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.response?.data?.error || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-white">Redirecting...</p>
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 py-8">

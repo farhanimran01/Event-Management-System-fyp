@@ -3,13 +3,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Calendar, MapPin, DollarSign, Users, Type } from "lucide-react";
+import { Calendar, MapPin, DollarSign, Users, Type, Upload, X } from "lucide-react";
+import { ImageUploadDragDrop } from "@/components/ImageUploadDragDrop";
 
 export default function CreateEventPage() {
     const { user } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>("");
 
     const [formData, setFormData] = useState({
         title: "",
@@ -24,6 +27,20 @@ export default function CreateEventPage() {
         ticketQuantity: 100,
     });
 
+    const handleImageSelected = (files: File[]) => {
+        if (files.length > 0) {
+            const file = files[0];
+            setImageFile(file);
+            const preview = URL.createObjectURL(file);
+            setImagePreview(preview);
+        }
+    };
+
+    const removeImage = () => {
+        setImageFile(null);
+        setImagePreview("");
+    };
+
     const handleChange = (e: any) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
@@ -35,29 +52,35 @@ export default function CreateEventPage() {
         setError("");
 
         try {
-            // Construct payload matching backend expectation
-            const payload = {
-                title: formData.title,
-                description: formData.description,
-                date: formData.date,
-                time: formData.time,
-                location: formData.location,
-                category: formData.category,
-                capacity: Number(formData.capacity),
-                ticketTypes: [{
-                    name: formData.ticketName,
-                    price: Number(formData.ticketPrice),
-                    quantity: Number(formData.ticketQuantity)
-                }],
-                // Initialize budget with 0 expenses but maybe setup total budget limit? 
-                // Backend doesn't strictly require it but nice to have.
-                budget: {
-                    total: 0,
-                    expenses: []
-                }
-            };
+            // Create FormData to handle both JSON and file
+            const formDataObj = new FormData();
+            formDataObj.append('title', formData.title);
+            formDataObj.append('description', formData.description);
+            formDataObj.append('date', formData.date);
+            formDataObj.append('time', formData.time);
+            formDataObj.append('location', formData.location);
+            formDataObj.append('category', formData.category);
+            formDataObj.append('capacity', String(formData.capacity));
+            formDataObj.append('ticketTypes', JSON.stringify([{
+                name: formData.ticketName,
+                price: Number(formData.ticketPrice),
+                quantity: Number(formData.ticketQuantity)
+            }]));
+            formDataObj.append('budget', JSON.stringify({
+                total: 0,
+                expenses: []
+            }));
 
-            const res = await api.post("/events", payload);
+            // Add image if selected
+            if (imageFile) {
+                formDataObj.append('image', imageFile);
+            }
+
+            const res = await api.post("/events", formDataObj, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
             router.push(`/dashboard/organizer`); // Or to event detail page
         } catch (err: any) {
             console.error(err);
@@ -158,6 +181,33 @@ export default function CreateEventPage() {
                         </div>
                     </div>
 
+                    {/* Event Image Upload */}
+                    <div className="border-t border-gray-100 my-6"></div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Event Image</h3>
+                    
+                    {!imagePreview ? (
+                        <ImageUploadDragDrop 
+                            onImagesSelected={handleImageSelected}
+                            maxImages={1}
+                            maxSizePerImage={5}
+                        />
+                    ) : (
+                        <div className="relative inline-block">
+                            <img 
+                                src={imagePreview} 
+                                alt="Event preview" 
+                                className="w-full h-64 object-cover rounded-lg border-2 border-purple-300"
+                            />
+                            <button
+                                type="button"
+                                onClick={removeImage}
+                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+
                     <div className="border-t border-gray-100 my-6"></div>
 
                     {/* Capacity & Tickets */}
@@ -212,7 +262,7 @@ export default function CreateEventPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Price ($)</label>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Price (NPR)</label>
                                 <input
                                     type="number"
                                     name="ticketPrice"

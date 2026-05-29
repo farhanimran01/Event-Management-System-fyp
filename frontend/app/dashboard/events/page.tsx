@@ -163,10 +163,10 @@ export default function EventsBrowsePage() {
                                         <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
                                             <div>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Starting From</p>
-                                                <p className="text-xl font-black text-slate-900">${event.ticketTypes[0]?.price || 0}</p>
+                                                <p className="text-xl font-black text-slate-900">NPR {event.ticketTypes[0]?.price || 0}</p>
                                             </div>
                                             <Link
-                                                href={`/dashboard/events/${event._id}`}
+                                                href={`/events/${event._id}`}
                                                 className="px-6 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all hover:translate-x-1 flex items-center gap-2"
                                             >
                                                 Details <ArrowRight size={14} />

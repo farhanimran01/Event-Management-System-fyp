@@ -1,4 +1,53 @@
+const mongoose = require('mongoose');
 const Event = require('../models/Event');
+
+// @desc    Get events created by the current organizer
+// @route   GET /api/events/organizer
+// @access  Private (Organizer)
+exports.getOrganizerEvents = async (req, res, next) => {
+    try {
+        const events = await Event.find({ organizer: req.user.id }).sort('-createdAt');
+
+        res.status(200).json({
+            success: true,
+            data: events
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @desc    Get organizer stats (Total events, tickets sold, revenue)
+// @route   GET /api/events/stats/overview
+// @access  Private (Organizer)
+exports.getOrganizerStats = async (req, res, next) => {
+    try {
+        const stats = await Event.aggregate([
+            {
+                $match: { organizer: new mongoose.Types.ObjectId(req.user.id) }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalEvents: { $sum: 1 },
+                    totalRevenue: { $sum: '$budget.total' },
+                    totalTicketsSold: {
+                        $sum: {
+                            $sum: '$ticketTypes.sold'
+                        }
+                    }
+                }
+            }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: stats[0] || { totalEvents: 0, totalRevenue: 0, totalTicketsSold: 0 }
+        });
+    } catch (err) {
+        next(err);
+    }
+};
 
 // @desc    Get all events
 // @route   GET /api/events
@@ -208,6 +257,22 @@ exports.updateEvent = async (req, res, next) => {
         next(err);
     }
 };
+// @desc    Get branches for an event
+// @route   GET /api/events/:id/branches
+// @access  Private (Organizer)
+exports.getEventBranches = async (req, res, next) => {
+    try {
+        const branches = await Event.find({ parentEvent: req.params.id });
+
+        res.status(200).json({
+            success: true,
+            count: branches.length,
+            data: branches
+        });
+    } catch (err) {
+        next(err);
+    }
+};
 
 // @desc    Delete event
 // @route   DELETE /api/events/:id
@@ -225,9 +290,145 @@ exports.deleteEvent = async (req, res, next) => {
             return res.status(403).json({ success: false, error: `User ${req.user.id} is not authorized to delete this event` });
         }
 
+        // Check for active branches
+        const branchCount = await Event.countDocuments({ parentEvent: req.params.id });
+        if (branchCount > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Cannot delete event with active branches. Please delete branches first.'
+            });
+        }
+
         await event.deleteOne();
 
         res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @route   POST /api/events/:id/budget/expenses
+// @access  Private (Organizer/Admin)
+exports.addExpense = async (req, res, next) => {
+    try {
+        const event = await Event.findById(req.params.id);
+
+        if (!event) {
+            return res.status(404).json({ success: false, error: 'Event not found' });
+        }
+
+        // Check ownership
+        if (event.organizer.toString() !== req.user.id && req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        const { title, amount, category } = req.body;
+        event.budget.expenses.push({ title, amount, category });
+
+        // Update lineage
+        event.lineage.push({
+            modifiedBy: req.user.id,
+            action: 'UPDATED',
+            note: `Added expense: ${title}`
+        });
+
+        await event.save();
+
+        res.status(200).json({ success: true, data: event.budget });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @desc    Manage vendor status for event
+// @route   POST /api/events/:id/vendors/manage
+// @access  Private (Organizer/Admin)
+exports.manageVendorStatus = async (req, res, next) => {
+    try {
+        const event = await Event.findById(req.params.id);
+
+        if (!event) {
+            return res.status(404).json({ success: false, error: 'Event not found' });
+        }
+
+        // Check ownership
+        if (event.organizer.toString() !== req.user.id && req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        const { vendorId, role, status } = req.body;
+
+        const vendorIndex = event.vendors.findIndex(v => v.vendorId.toString() === vendorId);
+
+        if (vendorIndex > -1) {
+            if (status) event.vendors[vendorIndex].status = status;
+            if (role) event.vendors[vendorIndex].role = role;
+        } else {
+            event.vendors.push({ vendorId, role, status });
+        }
+
+        // Update lineage
+        event.lineage.push({
+            modifiedBy: req.user.id,
+            action: 'UPDATED',
+            note: `Updated vendor: ${vendorId}`
+        });
+
+        await event.save();
+
+        res.status(200).json({ success: true, data: event.vendors });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @desc    Remove vendor from event
+// @route   DELETE /api/events/:id/vendors/:vendorId
+// @access  Private (Organizer/Admin)
+exports.removeVendor = async (req, res, next) => {
+    try {
+        const event = await Event.findById(req.params.id);
+
+        if (!event) {
+            return res.status(404).json({ success: false, error: 'Event not found' });
+        }
+
+        // Check ownership
+        if (event.organizer.toString() !== req.user.id && req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+
+        event.vendors = event.vendors.filter(v => v.vendorId.toString() !== req.params.vendorId);
+
+        // Update lineage
+        event.lineage.push({
+            modifiedBy: req.user.id,
+            action: 'UPDATED',
+            note: `Removed vendor: ${req.params.vendorId}`
+        });
+
+        await event.save();
+
+        res.status(200).json({ success: true, data: event.vendors });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @desc    Get events assigned to vendor
+// @route   GET /api/events/assigned/me
+// @access  Private (Vendor)
+exports.getVendorEvents = async (req, res, next) => {
+    try {
+        const events = await Event.find({ "vendors.vendorId": req.user.id })
+            .populate('organizer', 'name email')
+            .select('title date location status vendors');
+
+        res.status(200).json({
+            success: true,
+            count: events.length,
+            data: events
+        });
     } catch (err) {
         next(err);
     }
